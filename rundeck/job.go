@@ -50,7 +50,7 @@ func (js Jobs) pick(job string) *Job {
 }
 
 type Act struct {
-	ID        string `json:"id"`
+	ID        int    `json:"id"`
 	Permalink string `json:"permalink"`
 }
 
@@ -60,8 +60,8 @@ type Entry struct {
 
 type Output struct {
 	Entries      []Entry `json:"entries"`
-	Offset       int     `json:"offset"`
-	LastModified int     `json:"lastmod"`
+	Offset       int     `json:"offset,string"`
+	LastModified int     `json:"lastmod,string"`
 	Completed    bool    `json:"completed"`
 }
 
@@ -73,11 +73,14 @@ type Rundeck struct {
 }
 
 func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, error) {
-	base := fmt.Sprintf("https://%s/api/16", r.host)
-	uri = path.Join(base, uri)
+	u, err := url.Parse(fmt.Sprintf("https://%s/api/16", r.host))
+	if err != nil {
+		return nil, err
+	}
+	u.Path = path.Join(u.Path, uri)
 
 	if method == http.MethodPost {
-		req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(data.Encode()))
+		req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +89,7 @@ func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, 
 		return r.client.Do(req)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +133,9 @@ func (r *Rundeck) getJobDefinition(job string) (*JobDef, error) {
 		return nil, fmt.Errorf("job(%s) not found", job)
 	}
 
-	res, err := r.request(http.MethodGet, fmt.Sprintf("/job/%s?format=yaml", jb.ID), url.Values{})
+	data := url.Values{}
+	data.Set("format", "yaml")
+	res, err := r.request(http.MethodGet, fmt.Sprintf("/job/%s", jb.ID), data)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +186,7 @@ func (r *Rundeck) tailActivity(act Act) error {
 		data.Set("offset", strconv.Itoa(offset))
 		data.Set("lastmod", strconv.Itoa(lastmod))
 
-		res, err := r.request(http.MethodGet, fmt.Sprintf("/execution/%s/output", act.ID), data)
+		res, err := r.request(http.MethodGet, fmt.Sprintf("/execution/%d/output", act.ID), data)
 		if err != nil {
 			return err
 		}
@@ -347,9 +352,6 @@ func AuthWithPass(user, pass, host, project string, out io.Writer) (*Rundeck, er
 		return nil, err
 	}
 	defer res.Body.Close()
-	if res.Header.Get("set-cookie") == "" {
-		return nil, fmt.Errorf("authentication fail")
-	}
 
 	header := http.Header{}
 	header.Set("Accept", "application/json")
