@@ -29,6 +29,7 @@ func main() {
 	line := liner.NewLiner()
 	defer line.Close()
 	line.SetCtrlCAborts(true)
+	line.SetTabCompletionStyle(liner.TabPrints)
 
 	var rd *rundeck.Rundeck
 	if conf.Token == "" {
