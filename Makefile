@@ -4,4 +4,4 @@ get-deps:
 		go get ./...
 
 go-rundeck:
-		go build -o rundeck-cli main.go conf.go
+		go build -o rundeck-cli main.go conf.go completion.go

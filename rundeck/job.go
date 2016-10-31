@@ -105,6 +105,20 @@ func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, 
 	return r.client.Do(req)
 }
 
+func (r *Rundeck) GetJobLabels() ([]string, error) {
+	jobs, err := r.getJobs()
+	if err != nil {
+		return nil, err
+	}
+
+	labels := make([]string, 0, len(jobs))
+	for _, j := range jobs {
+		labels = append(labels, j.Label)
+	}
+
+	return labels, nil
+}
+
 func (r *Rundeck) getJobs() (Jobs, error) {
 	res, err := r.request(http.MethodGet, fmt.Sprintf("/project/%s/jobs", r.project), url.Values{})
 	if err != nil {
@@ -279,7 +293,7 @@ func (r *Rundeck) displayJobs(jobs []Job) {
 
 func (r *Rundeck) Do(cmd string, args []string) error {
 	switch cmd {
-	case "run":
+	case CmdRun:
 		if len(args) < 1 {
 			return fmt.Errorf("sub command required")
 		}
@@ -287,21 +301,21 @@ func (r *Rundeck) Do(cmd string, args []string) error {
 		job, opts := args[0], args[1:]
 
 		return r.run(job, opts)
-	case "help":
+	case CmdHelp:
 		if len(args) < 1 {
 			return fmt.Errorf("sub command required")
 		}
 
 		subCmd, opts := args[0], args[1:]
 		switch subCmd {
-		case "jobs":
+		case SubCmdJobs:
 			jobs, err := r.getJobs()
 			if err != nil {
 				return err
 			}
 
 			r.displayJobs(jobs)
-		case "job":
+		case SubCmdJob:
 			if len(opts) < 1 {
 				return fmt.Errorf("job name required")
 			}

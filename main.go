@@ -54,6 +54,18 @@ func main() {
 		}
 	}
 
+	labels, err := rd.GetJobLabels()
+	if err != nil {
+		panic(err)
+	}
+
+	cmpl := completer{
+		cmds:    rundeck.Cmds(),
+		subCmds: rundeck.SubCmds(),
+		jobs:    labels,
+	}
+	line.SetWordCompleter(cmpl.completeCmd)
+
 	for {
 		l, err := line.Prompt("rundeck> ")
 		if err != nil {

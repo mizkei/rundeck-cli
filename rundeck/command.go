@@ -1,19 +1,19 @@
 package rundeck
 
 const (
-	cmdRun  = "run"
-	cmdHelp = "help"
+	CmdRun  = "run"
+	CmdHelp = "help"
 )
 
 const (
-	subCmdJob  = "job"
-	subCmdJobs = "jobs"
+	SubCmdJob  = "job"
+	SubCmdJobs = "jobs"
 )
 
 func Cmds() []string {
-	return []string{cmdRun, cmdHelp}
+	return []string{CmdRun, CmdHelp}
 }
 
 func SubCmds() []string {
-	return []string{subCmdJob, subCmdJobs}
+	return []string{SubCmdJob, SubCmdJobs}
 }
