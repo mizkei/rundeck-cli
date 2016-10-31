@@ -42,13 +42,13 @@ func main() {
 			panic(err)
 		}
 
-		rd, err = rundeck.AuthWithPass(username, pass, conf.Host, conf.Project, os.Stdout)
+		rd, err = rundeck.AuthWithPass(username, pass, conf.Schema, conf.Host, conf.Project, os.Stdout)
 		if err != nil {
 			panic(err)
 		}
 	} else {
 		var err error
-		rd, err = rundeck.AuthWithToken(conf.Token, conf.Host, conf.Project, os.Stdout)
+		rd, err = rundeck.AuthWithToken(conf.Token, conf.Schema, conf.Host, conf.Project, os.Stdout)
 		if err != nil {
 			panic(err)
 		}

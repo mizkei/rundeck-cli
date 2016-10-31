@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+const (
+	baseURLFmt = "%s://%s/api/16"
+)
+
 type JobOption struct {
 	Name       string `yaml:"name"`
 	IsRequired bool   `yaml:"required"`
@@ -66,14 +70,16 @@ type Output struct {
 }
 
 type Rundeck struct {
-	client        *http.Client
-	header        http.Header
-	host, project string
-	out           io.Writer
+	client       *http.Client
+	header       http.Header
+	schema, host string
+	baseURL      string
+	project      string
+	out          io.Writer
 }
 
 func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, error) {
-	u, err := url.Parse(fmt.Sprintf("https://%s/api/16", r.host))
+	u, err := url.Parse(r.baseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -317,37 +323,49 @@ func (r *Rundeck) Do(cmd string, args []string) error {
 	return nil
 }
 
-func AuthWithToken(token, host, project string, out io.Writer) (*Rundeck, error) {
+func AuthWithToken(token, schema, host, project string, out io.Writer) (*Rundeck, error) {
 	header := http.Header{}
 	header.Set("X-Rundeck-Auth-Token", token)
 	header.Set("Accept", "application/json")
+
+	baseURL := fmt.Sprintf(baseURLFmt, schema, host)
 
 	if out == nil {
 		out = os.Stdout
 	}
 
 	return &Rundeck{
+		schema:  schema,
 		host:    host,
 		project: project,
+		baseURL: baseURL,
 		client:  &http.Client{},
 		header:  header,
 		out:     out,
 	}, nil
 }
 
-func AuthWithPass(user, pass, host, project string, out io.Writer) (*Rundeck, error) {
+func AuthWithPass(user, pass, schema, host, project string, out io.Writer) (*Rundeck, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
 	}
 	client := &http.Client{Jar: jar}
 
-	uri := fmt.Sprintf("https://%s/j_security_check", host)
+	baseURL := fmt.Sprintf(baseURLFmt, schema, host)
+
+	signinPath := "/j_security_check"
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	u.Path = path.Join(u.Path, signinPath)
 	data := url.Values{}
 	data.Set("j_username", user)
 	data.Set("j_password", pass)
 
-	res, err := client.PostForm(uri, data)
+	res, err := client.PostForm(u.String(), data)
 	if err != nil {
 		return nil, err
 	}
@@ -361,8 +379,10 @@ func AuthWithPass(user, pass, host, project string, out io.Writer) (*Rundeck, er
 	}
 
 	return &Rundeck{
+		schema:  schema,
 		host:    host,
 		project: project,
+		baseURL: baseURL,
 		client:  client,
 		header:  header,
 		out:     out,
