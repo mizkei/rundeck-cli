@@ -2,7 +2,7 @@
 
 # Config
 
-default config path is `$HOME/.config/go-rundeck-cli/conf.json`.  
+default config path is `$HOME/.config/rundeck-cli/conf.json`  
 or  
 `rundeck-cli -conf=conf.json`
 
