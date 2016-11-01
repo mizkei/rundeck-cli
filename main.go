@@ -18,7 +18,7 @@ func main() {
 	}
 
 	var confPath string
-	flag.StringVar(&confPath, "conf", "$HOME/.config/go-rundeck-cli/conf.json", "config path")
+	flag.StringVar(&confPath, "conf", "$HOME/.config/rundeck-cli/conf.json", "config path")
 	flag.Parse()
 
 	conf, err := loadConf(confPath)
