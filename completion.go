@@ -45,10 +45,6 @@ func (c *completer) completeCmd(line string, pos int) (string, []string, string)
 		return "", listHasPrefix(target, c.cmds), ls
 	case 2:
 		target := ss[1]
-		if target == "" {
-			return ss[0] + " ", c.subCmds, ls
-		}
-
 		if ss[0] == rundeck.CmdRun {
 			return ss[0] + " ", listHasPrefix(target, c.jobs), ls
 		}
@@ -57,10 +53,6 @@ func (c *completer) completeCmd(line string, pos int) (string, []string, string)
 	case 3:
 		pre := strings.Join(ss[:2], " ")
 		target := ss[2]
-		if target == "" {
-			return pre + " ", nil, ls
-		}
-
 		if ss[1] == rundeck.SubCmdJob {
 			return pre + " ", listHasPrefix(target, c.jobs), ls
 		}

@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -167,7 +169,7 @@ func (r *Rundeck) getJobDefinition(job string) (*JobDef, error) {
 	}
 
 	var jdl JobDefList
-	if err := json.Unmarshal(b, &jdl); err != nil {
+	if err := yaml.Unmarshal(b, &jdl); err != nil {
 		return nil, err
 	}
 
@@ -256,7 +258,7 @@ func (r *Rundeck) run(job string, opts []string) error {
 	if err := r.tailActivity(*act); err != nil {
 		return err
 	}
-	r.out.Write([]byte("done"))
+	r.out.Write([]byte("done\n"))
 
 	return nil
 }
