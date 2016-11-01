@@ -13,6 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
+)
+
+const (
+	baseURLFmt = "%s://%s/api/16"
 )
 
 type JobOption struct {
@@ -50,7 +56,7 @@ func (js Jobs) pick(job string) *Job {
 }
 
 type Act struct {
-	ID        string `json:"id"`
+	ID        int    `json:"id"`
 	Permalink string `json:"permalink"`
 }
 
@@ -60,24 +66,29 @@ type Entry struct {
 
 type Output struct {
 	Entries      []Entry `json:"entries"`
-	Offset       int     `json:"offset"`
-	LastModified int     `json:"lastmod"`
+	Offset       int     `json:"offset,string"`
+	LastModified int     `json:"lastmod,string"`
 	Completed    bool    `json:"completed"`
 }
 
 type Rundeck struct {
-	client        *http.Client
-	header        http.Header
-	host, project string
-	out           io.Writer
+	client       *http.Client
+	header       http.Header
+	schema, host string
+	baseURL      string
+	project      string
+	out          io.Writer
 }
 
 func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, error) {
-	base := fmt.Sprintf("https://%s/api/16", r.host)
-	uri = path.Join(base, uri)
+	u, err := url.Parse(r.baseURL)
+	if err != nil {
+		return nil, err
+	}
+	u.Path = path.Join(u.Path, uri)
 
 	if method == http.MethodPost {
-		req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(data.Encode()))
+		req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +97,7 @@ func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, 
 		return r.client.Do(req)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +105,20 @@ func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, 
 	req.URL.RawQuery = data.Encode()
 
 	return r.client.Do(req)
+}
+
+func (r *Rundeck) GetJobLabels() ([]string, error) {
+	jobs, err := r.getJobs()
+	if err != nil {
+		return nil, err
+	}
+
+	labels := make([]string, 0, len(jobs))
+	for _, j := range jobs {
+		labels = append(labels, j.Label)
+	}
+
+	return labels, nil
 }
 
 func (r *Rundeck) getJobs() (Jobs, error) {
@@ -130,7 +155,9 @@ func (r *Rundeck) getJobDefinition(job string) (*JobDef, error) {
 		return nil, fmt.Errorf("job(%s) not found", job)
 	}
 
-	res, err := r.request(http.MethodGet, fmt.Sprintf("/job/%s?format=yaml", jb.ID), url.Values{})
+	data := url.Values{}
+	data.Set("format", "yaml")
+	res, err := r.request(http.MethodGet, fmt.Sprintf("/job/%s", jb.ID), data)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +169,7 @@ func (r *Rundeck) getJobDefinition(job string) (*JobDef, error) {
 	}
 
 	var jdl JobDefList
-	if err := json.Unmarshal(b, &jdl); err != nil {
+	if err := yaml.Unmarshal(b, &jdl); err != nil {
 		return nil, err
 	}
 
@@ -181,7 +208,7 @@ func (r *Rundeck) tailActivity(act Act) error {
 		data.Set("offset", strconv.Itoa(offset))
 		data.Set("lastmod", strconv.Itoa(lastmod))
 
-		res, err := r.request(http.MethodGet, fmt.Sprintf("/execution/%s/output", act.ID), data)
+		res, err := r.request(http.MethodGet, fmt.Sprintf("/execution/%d/output", act.ID), data)
 		if err != nil {
 			return err
 		}
@@ -231,7 +258,7 @@ func (r *Rundeck) run(job string, opts []string) error {
 	if err := r.tailActivity(*act); err != nil {
 		return err
 	}
-	r.out.Write([]byte("done"))
+	r.out.Write([]byte("done\n"))
 
 	return nil
 }
@@ -268,7 +295,7 @@ func (r *Rundeck) displayJobs(jobs []Job) {
 
 func (r *Rundeck) Do(cmd string, args []string) error {
 	switch cmd {
-	case "run":
+	case CmdRun:
 		if len(args) < 1 {
 			return fmt.Errorf("sub command required")
 		}
@@ -276,21 +303,21 @@ func (r *Rundeck) Do(cmd string, args []string) error {
 		job, opts := args[0], args[1:]
 
 		return r.run(job, opts)
-	case "help":
+	case CmdHelp:
 		if len(args) < 1 {
 			return fmt.Errorf("sub command required")
 		}
 
 		subCmd, opts := args[0], args[1:]
 		switch subCmd {
-		case "jobs":
+		case SubCmdJobs:
 			jobs, err := r.getJobs()
 			if err != nil {
 				return err
 			}
 
 			r.displayJobs(jobs)
-		case "job":
+		case SubCmdJob:
 			if len(opts) < 1 {
 				return fmt.Errorf("job name required")
 			}
@@ -312,44 +339,53 @@ func (r *Rundeck) Do(cmd string, args []string) error {
 	return nil
 }
 
-func AuthWithToken(token, host, project string, out io.Writer) (*Rundeck, error) {
+func AuthWithToken(token, schema, host, project string, out io.Writer) (*Rundeck, error) {
 	header := http.Header{}
 	header.Set("X-Rundeck-Auth-Token", token)
 	header.Set("Accept", "application/json")
+
+	baseURL := fmt.Sprintf(baseURLFmt, schema, host)
 
 	if out == nil {
 		out = os.Stdout
 	}
 
 	return &Rundeck{
+		schema:  schema,
 		host:    host,
 		project: project,
+		baseURL: baseURL,
 		client:  &http.Client{},
 		header:  header,
 		out:     out,
 	}, nil
 }
 
-func AuthWithPass(user, pass, host, project string, out io.Writer) (*Rundeck, error) {
+func AuthWithPass(user, pass, schema, host, project string, out io.Writer) (*Rundeck, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
 	}
 	client := &http.Client{Jar: jar}
 
-	uri := fmt.Sprintf("https://%s/j_security_check", host)
+	baseURL := fmt.Sprintf(baseURLFmt, schema, host)
+
+	signinPath := "/j_security_check"
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	u.Path = path.Join(u.Path, signinPath)
 	data := url.Values{}
 	data.Set("j_username", user)
 	data.Set("j_password", pass)
 
-	res, err := client.PostForm(uri, data)
+	res, err := client.PostForm(u.String(), data)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
-	if res.Header.Get("set-cookie") == "" {
-		return nil, fmt.Errorf("authentication fail")
-	}
 
 	header := http.Header{}
 	header.Set("Accept", "application/json")
@@ -359,8 +395,10 @@ func AuthWithPass(user, pass, host, project string, out io.Writer) (*Rundeck, er
 	}
 
 	return &Rundeck{
+		schema:  schema,
 		host:    host,
 		project: project,
+		baseURL: baseURL,
 		client:  client,
 		header:  header,
 		out:     out,

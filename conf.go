@@ -6,6 +6,7 @@ import (
 )
 
 type Conf struct {
+	Schema  string `json:"schema"`
 	Host    string `json:"host"`
 	Project string `json:"project"`
 	Token   string `json:"token"`
