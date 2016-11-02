@@ -254,7 +254,7 @@ func (r *Rundeck) run(job string, opts []string) error {
 		return err
 	}
 
-	fmt.Fprintf(r.out, "job is running (%s)", act.Permalink)
+	fmt.Fprintf(r.out, "job is running (%s)\n", act.Permalink)
 	if err := r.tailActivity(*act); err != nil {
 		return err
 	}
