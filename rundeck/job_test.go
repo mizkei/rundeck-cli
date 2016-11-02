@@ -2,16 +2,50 @@ package rundeck
 
 import (
 	"bufio"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"testing"
 )
 
 func TestGetJobLabels(t *testing.T) {
+	testToken := "token"
+	testProject := "rundeck-test"
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectURL := fmt.Sprintf("/project/%s/jobs", testProject)
+
+		if r.URL.Path != expectURL {
+			t.Errorf("url not match. got:%s, expect:%s", r.URL, expectURL)
+		}
+
+		w.Write([]byte(""))
 	}))
 	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var w bufio.Writer
+	rd, err := AuthWithToken(testToken, u.Scheme, u.Host, testProject, &w)
+	if err != nil {
+		t.Error(err)
+	}
+
+	labels, err := rd.GetJobLabels()
+	if err != nil {
+		t.Log(err)
+	}
+
+	expectLabels := []string{"prepare", "sync", "deploy", "done"}
+
+	if !reflect.DeepEqual(labels, expectLabels) {
+		t.Error("labels not match")
+	}
 }
 
 func TestDo(t *testing.T) {
@@ -21,9 +55,30 @@ func TestDo(t *testing.T) {
 }
 
 func TestAuthWithToken(t *testing.T) {
+	testToken := "token"
+	testProject := "rundeck-test"
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	}))
 	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var w bufio.Writer
+	rd, err := AuthWithToken(testToken, u.Scheme, u.Host, testProject, &w)
+	if err != nil {
+		t.Error(err)
+	}
+
+	header := rd.header
+	token := header.Get("X-Rundeck-Auth-Token")
+
+	if token != testToken {
+		t.Errorf("token not match. got:%s, expect:%s", token, testToken)
+	}
 }
 
 func TestAuthWithPass(t *testing.T) {
