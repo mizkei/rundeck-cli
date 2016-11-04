@@ -14,27 +14,26 @@ func TestGetJobLabels(t *testing.T) {
 	testToken := "token"
 	testProject := "test-rundeck"
 
-	testRes := `
-  [
-    {
-      "id": "test-id-0",
-      "name": "deploy",
-      "group": null,
-      "project": "test-rundeck",
-      "description": "deploy",
-      "href": "",
-      "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-0"
-    },
-    {
-      "id": "test-id-1",
-      "name": "done",
-      "group": null,
-      "project": "test-rundeck",
-      "description": "done deploy",
-      "href": "",
-      "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-1"
-    }
-  ]`
+	testRes := `[
+  {
+    "id": "test-id-0",
+    "name": "deploy",
+    "group": null,
+    "project": "test-rundeck",
+    "description": "deploy",
+    "href": "",
+    "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-0"
+  },
+  {
+    "id": "test-id-1",
+    "name": "done",
+    "group": null,
+    "project": "test-rundeck",
+    "description": "done deploy",
+    "href": "",
+    "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-1"
+  }
+]`
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectURL := fmt.Sprintf("/api/16/project/%s/jobs", testProject)
