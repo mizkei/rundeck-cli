@@ -105,7 +105,26 @@ func TestDo(t *testing.T) {
 			}
 
 			w.Write([]byte(testRes))
-		case "/api/16/job/%s":
+		case "/api/16/job/test-id-0":
+			testRes := `- description: 'deploy'
+  executionEnabled: true
+  id: test-id-0
+  loglevel: INFO
+  name: deploy
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - exec: deploy
+    keepgoing: false
+    strategy: node-first
+  uuid: test-uuid-0
+`
+
+			if r.Method != http.MethodGet {
+				t.Error("http method should be GET")
+			}
+
+			w.Write([]byte(testRes))
 		case "/api/16/job/%s/executions":
 		case "/api/16/execution/%d/output":
 		default:
@@ -183,6 +202,20 @@ func TestDo(t *testing.T) {
 	})
 
 	t.Run("help job", func(t *testing.T) {
+		var w bytes.Buffer
+		rd.out = &w
+		if err := rd.Do(CmdHelp, []string{SubCmdJob, "deploy"}); err != nil {
+			t.Error(err)
+		}
+
+		expectOut := []byte(`deploy
+	 deploy
+
+	options
+`)
+		if !bytes.Equal(w.Bytes(), expectOut) {
+			t.Errorf("output not match.\ngot:\n%s\nexpect:\n%s", w.String(), string(expectOut))
+		}
 	})
 
 	t.Run("run job", func(t *testing.T) {
