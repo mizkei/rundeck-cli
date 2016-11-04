@@ -2,6 +2,7 @@ package rundeck
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -73,9 +74,119 @@ func TestGetJobLabels(t *testing.T) {
 }
 
 func TestDo(t *testing.T) {
+	testToken := "token"
+	testProject := "test-rundeck"
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case fmt.Sprintf("/api/16/project/%s/jobs", testProject):
+			testRes := `[
+  {
+    "id": "test-id-0",
+    "name": "deploy",
+    "group": null,
+    "project": "test-rundeck",
+    "description": "deploy",
+    "href": "",
+    "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-0"
+  },
+  {
+    "id": "test-id-1",
+    "name": "done",
+    "group": null,
+    "project": "test-rundeck",
+    "description": "done deploy",
+    "href": "",
+    "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-1"
+  }
+]`
+			if r.Method != http.MethodGet {
+				t.Error("http method should be GET")
+			}
+
+			w.Write([]byte(testRes))
+		case "/api/16/job/%s":
+		case "/api/16/job/%s/executions":
+		case "/api/16/execution/%d/output":
+		default:
+			t.Errorf("request url is wrong. url:%s", r.URL.Path)
+		}
 	}))
 	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rd, err := AuthWithToken(testToken, u.Scheme, u.Host, testProject, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Run("errors about command", func(t *testing.T) {
+		var err error
+		var w bytes.Buffer
+		rd.out = &w
+
+		err = rd.Do("pppp", []string{})
+		if err == nil {
+			t.Error("should return error message")
+		}
+		if err.Error() != "command 'pppp' not found" {
+			t.Errorf("error message not match. got:%s, expect:%s", err.Error(), "command 'pppp' not found")
+		}
+
+		err = rd.Do(CmdRun, []string{})
+		if err == nil {
+			t.Error("should return error message")
+		}
+		if err.Error() != "job name required" {
+			t.Errorf("error message not match. got:%s, expect:%s", err.Error(), "job name required")
+		}
+
+		err = rd.Do(CmdHelp, []string{})
+		if err == nil {
+			t.Error("should return error message")
+		}
+		if err.Error() != "sub command required" {
+			t.Errorf("error message not match. got:%s, expect:%s", err.Error(), "sub command required")
+		}
+
+		err = rd.Do(CmdHelp, []string{"job"})
+		if err == nil {
+			t.Error("should return error message")
+		}
+		if err.Error() != "job name required" {
+			t.Errorf("error message not match. got:%s, expect:%s", err.Error(), "job name required")
+		}
+	})
+
+	t.Run("help jobs", func(t *testing.T) {
+		var w bytes.Buffer
+		rd.out = &w
+		if err := rd.Do(CmdHelp, []string{SubCmdJobs}); err != nil {
+			t.Error(err)
+		}
+
+		expectOut := []byte(`available jobs:
+
+	 deploy
+		 deploy
+
+	 done
+		 done deploy
+`)
+		if !bytes.Equal(w.Bytes(), expectOut) {
+			t.Errorf("output not match.\ngot:\n%s\nexpect:\n%s", w.String(), string(expectOut))
+		}
+	})
+
+	t.Run("help job", func(t *testing.T) {
+	})
+
+	t.Run("run job", func(t *testing.T) {
+	})
 }
 
 func TestAuthWithToken(t *testing.T) {
