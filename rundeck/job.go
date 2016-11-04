@@ -297,7 +297,7 @@ func (r *Rundeck) Do(cmd string, args []string) error {
 	switch cmd {
 	case CmdRun:
 		if len(args) < 1 {
-			return fmt.Errorf("sub command required")
+			return fmt.Errorf("job name required")
 		}
 
 		job, opts := args[0], args[1:]
