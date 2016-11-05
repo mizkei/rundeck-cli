@@ -73,7 +73,7 @@ func main() {
 			return
 		}
 
-		l = strings.TrimSpace(l)
+		l = re.ReplaceAllString(strings.TrimSpace(l), " ")
 		strs := strings.Split(l, " ")
 		if l == "" || len(strs) == 0 {
 			continue

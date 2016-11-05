@@ -254,7 +254,7 @@ func (r *Rundeck) run(job string, opts []string) error {
 		return err
 	}
 
-	fmt.Fprintf(r.out, "job is running (%s)", act.Permalink)
+	fmt.Fprintf(r.out, "job is running (%s)\n", act.Permalink)
 	if err := r.tailActivity(*act); err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func (r *Rundeck) Do(cmd string, args []string) error {
 	switch cmd {
 	case CmdRun:
 		if len(args) < 1 {
-			return fmt.Errorf("sub command required")
+			return fmt.Errorf("job name required")
 		}
 
 		job, opts := args[0], args[1:]
