@@ -76,6 +76,7 @@ func TestGetJobLabels(t *testing.T) {
 func TestDo(t *testing.T) {
 	testToken := "token"
 	testProject := "test-rundeck"
+	outputAPICount := 0
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -125,8 +126,105 @@ func TestDo(t *testing.T) {
 			}
 
 			w.Write([]byte(testRes))
-		case "/api/16/job/%s/executions":
-		case "/api/16/execution/%d/output":
+		case "/api/16/job/test-id-0/executions":
+			testRes := `{
+  "id": 0,
+  "href": "",
+  "permalink": "http://test.rundeck.in/project/test-rundeck/execution/show/0",
+  "status": "running",
+  "project": "test-rundeck",
+  "user": "admin",
+  "date-started": {
+    "unixtime": 1477980000,
+    "date": "2016-11-01T15:00:00Z"
+  },
+  "job": {
+    "id": "test-id-0",
+    "averageDuration": 1000,
+    "name": "deploy",
+    "group": "",
+    "project": "test-rundeck",
+    "description": "deploy",
+    "href": "",
+    "permalink": "http://test.rundeck.in/project/test-rundeck/job/show/test-id-0"
+  },
+  "description": "touch deploy.lock [... 2 steps]",
+  "argstring": null
+}`
+
+			if r.Method != http.MethodPost {
+				t.Error("http method should be POST")
+			}
+
+			w.Write([]byte(testRes))
+		case "/api/16/execution/0/output":
+			var testRes string
+			if outputAPICount == 0 {
+				testRes = `{
+  "id": "0",
+  "offset": "0",
+  "completed": false,
+  "message": "Pending",
+  "execCompleted": false,
+  "hasFailedNodes": false,
+  "execState": "running",
+  "execDuration": 100,
+  "entries": []
+}`
+			} else if outputAPICount == 1 {
+				testRes = `{
+  "id": "0",
+  "offset": "2260",
+  "completed": true,
+  "execCompleted": true,
+  "hasFailedNodes": false,
+  "execState": "succeeded",
+  "lastModified": "1478336400000",
+  "execDuration": 1000,
+  "percentLoaded": 100,
+  "totalSize": 2260,
+  "entries": [
+    {
+      "time": "15:00:00",
+      "absolute_time": "2016-11-01T15:00:00Z",
+      "log": "test-log-1",
+      "level": "NORMAL",
+      "user": "rundeck",
+      "command": null,
+      "stepctx": "2",
+      "node": "test.rundeck.in"
+    },
+    {
+      "time": "15:00:00",
+      "absolute_time": "2016-11-01T15:00:00Z",
+      "log": "test-log-2",
+      "level": "NORMAL",
+      "user": "rundeck",
+      "command": null,
+      "stepctx": "2",
+      "node": "test.rundeck.in"
+    }
+  ]
+}`
+			}
+
+			values := r.URL.Query()
+			offset := values.Get("offset")
+			lastmod := values.Get("lastmod")
+
+			if r.Method != http.MethodGet {
+				t.Error("http method should be GET")
+			}
+
+			if offset != "0" {
+				t.Errorf("offset not match. got:%s, expect:%s", offset, "0")
+			}
+			if lastmod != "0" {
+				t.Errorf("lastmod not match. got:%s, expect:%s", lastmod, "0")
+			}
+
+			w.Write([]byte(testRes))
+			outputAPICount++
 		default:
 			t.Errorf("request url is wrong. url:%s", r.URL.Path)
 		}
@@ -219,6 +317,20 @@ func TestDo(t *testing.T) {
 	})
 
 	t.Run("run job", func(t *testing.T) {
+		var w bytes.Buffer
+		rd.out = &w
+		if err := rd.Do(CmdRun, []string{"deploy"}); err != nil {
+			t.Error(err)
+		}
+
+		expectOut := []byte(`job is running (http://test.rundeck.in/project/test-rundeck/execution/show/0)
+test-log-1
+test-log-2
+done
+`)
+		if !bytes.Equal(w.Bytes(), expectOut) {
+			t.Errorf("output not match.\ngot:\n%s\nexpect:\n%s", w.String(), string(expectOut))
+		}
 	})
 }
 
