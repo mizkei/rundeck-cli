@@ -1,0 +1,7 @@
+language: go
+go:
+  - tip
+before_install:
+  - make get-deps
+script:
+  - make test
