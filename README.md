@@ -1,5 +1,7 @@
 # rundeck-cli
 
+[![Build Status](https://travis-ci.org/mizkei/rundeck-cli.svg?branch=master)](https://travis-ci.org/mizkei/rundeck-cli)
+
 # Config
 
 default config path is `$HOME/.config/rundeck-cli/conf.json`  
