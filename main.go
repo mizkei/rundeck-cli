@@ -23,7 +23,8 @@ func main() {
 
 	conf, err := loadConf(confPath)
 	if err != nil {
-		panic(err)
+		fmt.Printf("failed to load config file. filepath:%s\n", confPath)
+		return
 	}
 
 	line := liner.NewLiner()
@@ -35,28 +36,33 @@ func main() {
 	if conf.Token == "" {
 		username, err := line.Prompt("username: ")
 		if err != nil {
-			panic(err)
+			fmt.Println("failed to read 'username'")
+			return
 		}
 		pass, err := line.PasswordPrompt("password: ")
 		if err != nil {
-			panic(err)
+			fmt.Println("failed to read 'password'")
+			return
 		}
 
 		rd, err = rundeck.AuthWithPass(username, pass, conf.Schema, conf.Host, conf.Project, os.Stdout)
 		if err != nil {
-			panic(err)
+			fmt.Println("failed to password authentication")
+			return
 		}
 	} else {
 		var err error
 		rd, err = rundeck.AuthWithToken(conf.Token, conf.Schema, conf.Host, conf.Project, os.Stdout)
 		if err != nil {
-			panic(err)
+			fmt.Println("failed to token authentication")
+			return
 		}
 	}
 
 	labels, err := rd.GetJobLabels()
 	if err != nil {
-		panic(err)
+		fmt.Println("failed to get jobs definition")
+		return
 	}
 
 	cmpl := completer{
