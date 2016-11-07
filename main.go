@@ -21,7 +21,7 @@ func main() {
 	flag.StringVar(&confPath, "conf", "$HOME/.config/rundeck-cli/conf.json", "config path")
 	flag.Parse()
 
-	conf, err := loadConf(confPath)
+	conf, err := loadConf(os.ExpandEnv(confPath))
 	if err != nil {
 		fmt.Printf("failed to load config file. filepath:%s\n", confPath)
 		return
