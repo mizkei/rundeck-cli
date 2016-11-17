@@ -62,5 +62,9 @@ func (c *completer) completeCmd(line string, pos int) (string, []string, string)
 		}
 	}
 
+	if len(list) == 1 {
+		list[0] += " "
+	}
+
 	return newPre, list, ls
 }
