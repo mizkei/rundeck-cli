@@ -158,6 +158,7 @@ func TestDo(t *testing.T) {
 
 			w.Write([]byte(testRes))
 		case "/api/16/execution/0/output":
+			// refs: http://rundeck.org/2.6.4/api/index.html#output-content
 			var testRes string
 			if outputAPICount == 0 {
 				testRes = `{

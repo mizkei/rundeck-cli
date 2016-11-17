@@ -67,7 +67,7 @@ type Entry struct {
 type Output struct {
 	Entries      []Entry `json:"entries"`
 	Offset       int     `json:"offset,string"`
-	LastModified int     `json:"lastmod,string"`
+	LastModified int     `json:"lastModified,string"`
 	Completed    bool    `json:"completed"`
 }
 
