@@ -59,6 +59,14 @@ func main() {
 		}
 	}
 
+	if args := flag.Args(); len(args) > 0 {
+		if err := rd.Do(args[0], args[1:]); err != nil {
+			fmt.Println(err)
+		}
+
+		return
+	}
+
 	labels, err := rd.GetJobLabels()
 	if err != nil {
 		fmt.Println("failed to get jobs definition")
