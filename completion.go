@@ -34,31 +34,37 @@ func (c *completer) completeCmd(line string, pos int) (string, []string, string)
 	pre, ls := line[:pos], line[pos:]
 	pre = re2.ReplaceAllString(re.ReplaceAllString(pre, " "), "")
 
-	ss := strings.Split(pre, " ")
+	newPre := pre + " "
+	var list []string
 
-	switch len(ss) {
+	switch ss := strings.Split(pre, " "); len(ss) {
 	case 1:
 		target := ss[0]
+		newPre = ""
 		if target == "" {
-			return "", c.cmds, ls
+			list = c.cmds
+			break
 		}
-		return "", listHasPrefix(target, c.cmds), ls
+		list = listHasPrefix(target, c.cmds)
 	case 2:
 		target := ss[1]
+		newPre = ss[0] + " "
 		if ss[0] == rundeck.CmdRun {
-			return ss[0] + " ", listHasPrefix(target, c.jobs), ls
+			list = listHasPrefix(target, c.jobs)
+			break
 		}
-
-		return ss[0] + " ", listHasPrefix(target, c.subCmds), ls
+		list = listHasPrefix(target, c.subCmds)
 	case 3:
-		pre := strings.Join(ss[:2], " ")
 		target := ss[2]
+		newPre = strings.Join(ss[:2], " ") + " "
 		if ss[1] == rundeck.SubCmdJob {
-			return pre + " ", listHasPrefix(target, c.jobs), ls
+			list = listHasPrefix(target, c.jobs)
 		}
-
-		return pre + " ", nil, ls
-	default:
-		return pre + " ", nil, ls
 	}
+
+	if len(list) == 1 {
+		list[0] += " "
+	}
+
+	return newPre, list, ls
 }
