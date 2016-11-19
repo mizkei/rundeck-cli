@@ -87,6 +87,29 @@ func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, 
 	}
 	u.Path = path.Join(u.Path, uri)
 
+	// why this process is necessary {{
+	ucs := make([]string, 0, 4)
+	for _, s := range r.header["Cookie"] {
+		ls := strings.Split(s, "; ")
+
+		cs := make(map[string]struct{})
+		for _, s := range ls {
+			cs[s] = struct{}{}
+		}
+
+		us := ""
+		if len(cs) > 0 {
+			list := make([]string, 0, 4)
+			for k := range cs {
+				list = append(list, k)
+			}
+			us = strings.Join(list, "; ")
+		}
+		ucs = append(ucs, us)
+	}
+	r.header["Cookie"] = ucs
+	// }}
+
 	if method == http.MethodPost {
 		req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
 		if err != nil {
