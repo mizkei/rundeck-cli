@@ -87,6 +87,29 @@ func (r *Rundeck) request(method, uri string, data url.Values) (*http.Response, 
 	}
 	u.Path = path.Join(u.Path, uri)
 
+	// why this process is necessary {{
+	ucs := make([]string, 0, 4)
+	for _, s := range r.header["Cookie"] {
+		ls := strings.Split(s, "; ")
+
+		cs := make(map[string]struct{})
+		for _, s := range ls {
+			cs[s] = struct{}{}
+		}
+
+		us := ""
+		if len(cs) > 0 {
+			list := make([]string, 0, 4)
+			for k := range cs {
+				list = append(list, k)
+			}
+			us = strings.Join(list, "; ")
+		}
+		ucs = append(ucs, us)
+	}
+	r.header["Cookie"] = ucs
+	// }}
+
 	if method == http.MethodPost {
 		req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(data.Encode()))
 		if err != nil {
@@ -204,16 +227,19 @@ func (r *Rundeck) tailActivity(act Act) error {
 	offset, lastmod := 0, 0
 	data := url.Values{}
 	var output Output
-	for {
+
+	fn := func() (bool, error) {
 		data.Set("offset", strconv.Itoa(offset))
 		data.Set("lastmod", strconv.Itoa(lastmod))
 
 		res, err := r.request(http.MethodGet, fmt.Sprintf("/execution/%d/output", act.ID), data)
 		if err != nil {
-			return err
+			return false, err
 		}
+		defer res.Body.Close()
+
 		if err := json.NewDecoder(res.Body).Decode(&output); err != nil {
-			return err
+			return false, err
 		}
 
 		for _, e := range output.Entries {
@@ -221,14 +247,25 @@ func (r *Rundeck) tailActivity(act Act) error {
 		}
 
 		if output.Completed {
-			break
+			return true, nil
 		}
 
 		offset, lastmod = output.Offset, output.LastModified
 
-		res.Body.Close()
-
 		time.Sleep(1 * time.Second)
+
+		return false, nil
+	}
+
+	for {
+		ok, err := fn()
+		if err != nil {
+			return err
+		}
+
+		if ok {
+			break
+		}
 	}
 
 	return nil
