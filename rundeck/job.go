@@ -204,16 +204,19 @@ func (r *Rundeck) tailActivity(act Act) error {
 	offset, lastmod := 0, 0
 	data := url.Values{}
 	var output Output
-	for {
+
+	fn := func() (bool, error) {
 		data.Set("offset", strconv.Itoa(offset))
 		data.Set("lastmod", strconv.Itoa(lastmod))
 
 		res, err := r.request(http.MethodGet, fmt.Sprintf("/execution/%d/output", act.ID), data)
 		if err != nil {
-			return err
+			return false, err
 		}
+		defer res.Body.Close()
+
 		if err := json.NewDecoder(res.Body).Decode(&output); err != nil {
-			return err
+			return false, err
 		}
 
 		for _, e := range output.Entries {
@@ -221,14 +224,25 @@ func (r *Rundeck) tailActivity(act Act) error {
 		}
 
 		if output.Completed {
-			break
+			return true, nil
 		}
 
 		offset, lastmod = output.Offset, output.LastModified
 
-		res.Body.Close()
-
 		time.Sleep(1 * time.Second)
+
+		return false, nil
+	}
+
+	for {
+		ok, err := fn()
+		if err != nil {
+			return err
+		}
+
+		if ok {
+			break
+		}
 	}
 
 	return nil
