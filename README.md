@@ -19,6 +19,8 @@ or
 
 # Usage
 
+## prompt mode
+
 ### commands
 
 - run $job-name
@@ -26,7 +28,7 @@ or
 
 sample
 ```
-> rundeck-cli -conf=conf.json
+> rundeck-cli
 username: rundeck
 password:
 rundeck>
@@ -34,4 +36,12 @@ run help
 rundeck> help job
 backup                 restore                system-recover
 rundeck> help job
+```
+
+## command line arguments
+
+sample
+```
+> rundeck-cli help jobs 
+> rundeck-cli run backup
 ```
